@@ -1,263 +1,139 @@
+// === Constants ===
 const BASE = "https://fsa-crud-2aa9294fe819.herokuapp.com/api/";
-const COHORT = "2506-ct-web-pt";
+const COHORT = "2506-ftb-ct-web-pt"; // This has been changed and is up to date.
 const API = BASE + COHORT;
-console.log(API);
 
 // State
 let events = [];
-let selectedEvent = null;
+let selectedEvents;
+let guest = [];
+let rsvps = [];
 
 
-//Actions
-//GET ALL THE RECIEPES
-//AWAIT response.JSON - turns body into javascript object
+
+/** Updates state with all events from the API */
 async function getEvents() {
   try {
-    const response = await fetch(`${API}/events`);
+   const response = await fetch(`${API}/events`);
     const result = await response.json();
     events = result.data;
-
     render();
-
-
-  } catch (error) {
-    console.error(error, "/There was an error /GET Event");
+  } catch (e) {
+    console.error(e);
   }
 }
 
-async function addEvents(eventObj) {
-  try {
-    await fetch(`${API}/events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(eventObj),
-    });
-    await getEvents(); // Mutation refresh the the api
-  } catch (error) {
-    console.error("Error with /POST", error);
-  }
-}
-
-
-async function getSingleEvent(id) {
+/** Updates state with a single event from the API */
+async function getEvent(id) {
   try {
     const response = await fetch(`${API}/events/${id}`);
+const result = await response.json();
+    selectedEvents = result.data;
+    render();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function getGuests() {
+  try {
+    const res = await fetch(`${API}/guests`);
     const result = await response.json();
-    selectedEvent = result.data;
-    render();
-    
+    guests = result.data;
   } catch (error) {
-    console.error("There was an error /GET Event", error);
+    console.error("Failed to fetch guests:", error);
   }
 }
 
 
-async function deleteEvent(id) {
-  try {
-    await fetch(`${API}/events/${id}`, { method: "DELETE" });
-    if (selectedEvent && selectedEvent.id === id) {
-      selectedEvent = null;
-    }
-    await getEvents(); // Mutation refresh the api
-  } catch (error) {
-    console.error("There was an error with /DELETE", error);
-  }
-}
+// === Components ===
 
-async function updateEvents(id, updatedEventObj) {
-  try {
-    await fetch(`${API}/events/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedEventsObj),
-    });
-    // If we're in single view of this event, refresh that; otherwise refresh list
-    if (selectedEvents && selectedEvents.id === id) {
-      await getEvent(id);
-    } else {
-      await getEvent();
-    }
-  } catch (error) {
-    console.error("There was an Error /PUT", error);
-  }
-}
-
-
-// Components
-// Single Event detail view
-function SingleEvent() {
-  const event = selectedEvent;
-  const $view = document.createElement("article");
-  $view.classList.add("single-event");
-
-  $view.innerHTML = `
-     <a href="#" class="back">Back</a>
-            <h2>${event.name} #${event.id}</h2>
-            <figure>
-                <img src=${event.imageUrl} alt=${event.name}>
-                <p class="desc">${event.description}</p>
-            </figure>
-            <form class="edit-form" hidden>
-                <label for="name">Name</label>
-                <input type="text" name="name" type="name" id="name" value="${event.name}" required>
-                <label for="description">Description</label>
-                <input type="text" name="description" id="description" value="${event.description}">
-                <label for="imageUrl">ImageUrl</label>
-                <input type="text" name="imageUrl" id="imageUrl" value="${event.imageUrl}">
-            </form>
-
-            <div class="single-actions">
-                <button class="action" data-action="edit" data-id=${event.id}>Edit</button>
-                <a href="#" class="delete" data-id=${event.id}>Delete</a>
-            </div>
-    
-    `;
-
-  const $back = $view.querySelector(".back");
-  const $btn = $view.querySelector(".action");
-  const $form = $view.querySelector(".edit-form");
-  const $del = $view.querySelector(".delete");
-
-  //back to list
-  $back.addEventListener("click", function (event) {
-    event.preventDefault();
-    selectedEvent = null;
-    render();
-  });
-
-  $btn.addEventListener("click", async function (event) {
-    const id = Number(event.currentTarget.dataset.id);
-    const action = event.currentTarget.dataset.action;
-
-    if (action === "edit") {
-      $form.hidden = false;
-      event.currentTarget.dataset.action = "save";
-      event.currentTarget.textContent = "Save";
-      return;
-    }
-    if (action === "save") {
-      const data = new FormData($form);
-      const updatedObj = {
-        name: data.get("name"),
-        description: data.get("description"),
-        imageUrl: data.get("imageUrl"),
-      };
-      await updateEvent(id, updatedObj);
-      $form.hidden = true;
-      event.currentTarget.dataset.action = "edit";
-      event.currentTarget.textContent = "Edit";
-    }
-  });
-
-  $del.addEventListener("click", async function (event) {
-    event.preventDefault();
-    const id = Number(event.currentTarget.dataset.id);
-    await deleteEvent(id);
-  });
-
-  return $view;
-}
-
-
-
-
-function EventCollection() {
-  const $collection = document.createElement("article");
-  $collection.classList.add("events");
-  if (!events || events.length === 0) {
-    $collection.innerHTML = `<p>No Events yet...</p>`;
-  } 
-   const $event = events.map(EventCard);
-   $collection.replaceChildren(...$event);
-   console.log("$$collection", $collection);
-  return $collection;
-}
-
-
-
-
-
-function EventCard(event) {
-  const $card = document.createElement("article");
-  $card.classList.add("event");
-
-  $card.innerHTML = `
- <h2>${event.name}</h2>
-            <figure>
-                <img src=${event.imageUrl} alt={event.name}>
-            </figure>
-            <p>${event.description}</p>
-
-<button class="action" data-action="view" data-id=${event.id}>
-                View
-            </button>
-`;
-
-  //TODO: View Button Logic
-  $card
-    .querySelector(".action")
-    .addEventListener("click", async function (event) {
-      const action = event.currentTarget.dataset.action;
-      const id = Number(event.currentTarget.dataset.id);
-      if (action === "view") {
-        await getEvent(id);
-      }
-    });
-
-  return $card;
-}
-
-function NewEventForm() {
-  const $form = document.createElement("form");
-  $form.innerHTML = `
-            <label for="name">Name</label>
-            <input type="text" name="name" type="name" id="name" required>
-            <label for="description">Description</label>
-            <input type="text" name="description" id="description">
-             <label for="imageUrl">ImageUrl</label>
-            <input type="text" name="imageUrl" id="imageUrl">
-            <button>Add new event</button>
+/** Event name that shows more details about the Event when clicked */
+function EventListItem(event) {
+  const $li = document.createElement("li");
+  $li.innerHTML = `
+    <a href="#selected">${event.name}</a>
   `;
-  $form.addEventListener("submit", async function (event) {
-    event.preventDefault();
-    const data = new FormData($form);
-    const newEventObj = {
-      name: data.get("name"),
-      imageUrl: data.get("imageUrl"),
-      description: data.get("description"),
-    };
-    await addEvent(newEventObj);
-    $form.reset();
-  });
-  return $form;
+  $li.addEventListener("click", () => getEvent(event.id));
+  return $li;
+}
+async function getRSVPs() {
+  try {
+    const res = await fetch(`${API}/rsvps`);
+    const result = await response.json();
+    rsvps = result.data;
+  } catch (error) {
+    console.error("Failed to fetch RSVPs:", error);
+  }
 }
 
 
-// Render - VIEW
+
+
+/** A list of names of all events */
+function EventList() {
+  const $ul = document.createElement("ul");
+  $ul.classList.add("lineup");
+
+  const $events = events.map(EventListItem);
+  $ul.replaceChildren(...$events);
+
+  return $ul;
+}
+
+/** Detailed information about the selected event */
+function EventDetails() {
+  if (!selectedEvents) {
+    const $p = document.createElement("p");
+    $p.textContent = "Please select an event to learn more.";
+    return $p;
+  }
+
+  const $event = document.createElement("section");
+  $event.classList.add("event");
+  $event.innerHTML = `
+    <h3>${selectedEvents.name} #${selectedEvents.id}</h3>
+
+   <p>${selectedEvents.date}</p>
+   <p>${selectedEvents.location}</p>
+
+    <p>${selectedEvents.description}</p>
+  
+  `;
+
+
+
+  return $event;
+}
+
+
+
+// === Render ===
 function render() {
   const $app = document.querySelector("#app");
-
-  if (selectedEvent) {
-    $app.innerHTML = `<h1>Event</h1>
-                      <SingleEvent></SingleEvent>
-    
-    `;
-    $app.querySelector("SingleEvent").replaceWith(SingleEvent());
-  } else {
-    $app.innerHTML = `
-    <h1>Events</h1>
-    <NewEventForm></NewEventForm>
-    <EventCollection></EventCollection>`;
-    $app.querySelector("NewEventForm").replaceWith(NewEventForm());
-    $app.querySelector("EventCollection").replaceWith(EventCollection());
-  }
+  $app.innerHTML = `
+    <h1>Party Planner</h1>
+    <main>
+      <section>
+        <h2>Upcoming Parties</h2>
+        <EventList></EventList>
+      </section>
+      <section id="selected">
+        <h2>Party Details</h2>
+        <EventDetails></EventDetails>
+      </section>
+    </main>
+  `;
+  $app.querySelector("EventList").replaceWith(EventList());
+  $app.querySelector("EventDetails").replaceWith(EventDetails());
 }
-
-
-getEvents();
 
 async function init() {
   await getEvents();
+   await getRSVPs();
+  await getGuests();
+ 
   render();
 }
+
 init();
